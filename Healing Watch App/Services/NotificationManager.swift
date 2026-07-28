@@ -69,29 +69,52 @@ final class NotificationManager {
     }
 
     private static func scheduleDates(for frequency: NotificationFrequency) -> [DateComponents] {
-        let hours: [Int]
         switch frequency {
         case .disabled:
-            hours = []
+            return []
+        case .everyHour:
+            return hourlyDates(from: 8, through: 20, step: 1)
         case .everyTwoHours:
-            hours = Array(stride(from: 8, through: 20, by: 2))
+            return hourlyDates(from: 8, through: 20, step: 2)
         case .everyFourHours:
-            hours = [8, 12, 16, 20]
+            return [8, 12, 16, 20].map { dateComponents(hour: $0) }
         case .everySixHours:
-            hours = [8, 14, 20]
+            return [8, 14, 20].map { dateComponents(hour: $0) }
         case .morningOnly:
-            hours = [8]
+            return [dateComponents(hour: 8)]
         case .eveningOnly:
-            hours = [19]
-        }
-
-        return hours.map { hour in
-            var components = DateComponents()
-            components.hour = hour
-            components.minute = 0
-            return components
+            return [dateComponents(hour: 19)]
+        case .eveningQuarterHourly:
+            return eveningQuarterHourlyDates()
         }
     }
 
-    private static let managedIdentifiers = (0..<16).map { "healing.quote-pulse.\($0)" }
+    private static func hourlyDates(from startHour: Int, through endHour: Int, step: Int) -> [DateComponents] {
+        Array(stride(from: startHour, through: endHour, by: step)).map { dateComponents(hour: $0) }
+    }
+
+    private static func eveningQuarterHourlyDates() -> [DateComponents] {
+        let eveningHours = (18...23).flatMap { hour in
+            [0, 15, 30, 45].map { minute in
+                dateComponents(hour: hour, minute: minute)
+            }
+        }
+
+        let afterMidnight = [0].flatMap { hour in
+            [0, 15, 30, 45].map { minute in
+                dateComponents(hour: hour, minute: minute)
+            }
+        }
+
+        return eveningHours + afterMidnight + [dateComponents(hour: 1)]
+    }
+
+    private static func dateComponents(hour: Int, minute: Int = 0) -> DateComponents {
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = minute
+        return components
+    }
+
+    private static let managedIdentifiers = (0..<64).map { "healing.quote-pulse.\($0)" }
 }

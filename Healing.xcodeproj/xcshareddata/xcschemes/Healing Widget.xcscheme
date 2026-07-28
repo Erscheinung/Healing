@@ -9,7 +9,7 @@
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
-            buildForRunning = "YES"
+            buildForRunning = "NO"
             buildForProfiling = "YES"
             buildForArchiving = "YES"
             buildForAnalyzing = "YES">
@@ -111,7 +111,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "2A9350922FFA760000749E4A"
             BuildableName = "Healing Widget.appex"
-            BlueprintName = "Healing Widget"
             ReferencedContainer = "container:Healing.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

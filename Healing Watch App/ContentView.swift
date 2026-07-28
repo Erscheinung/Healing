@@ -4,6 +4,9 @@ import WatchKit
 struct ContentView: View {
     @StateObject private var viewModel = QuoteViewModel()
     @State private var showingSettings = false
+    @State private var crownDetent = 0
+    @State private var hasPendingCrownAdvance = false
+    @FocusState private var isQuoteFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -12,17 +15,17 @@ struct ContentView: View {
                     .opacity(0.26)
                     .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 14) {
-                        QuoteCardView(
-                            quote: viewModel.quote,
-                            showAuthor: viewModel.settings.showAuthor
-                        )
-                        .id(viewModel.quote.id)
-                        .transition(.scale(scale: 0.96).combined(with: .opacity))
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 8)
+                QuoteCardView(
+                    quote: viewModel.quote,
+                    showAuthor: viewModel.settings.showAuthor
+                )
+                .id(viewModel.quote)
+                .transition(.scale(scale: 0.96).combined(with: .opacity))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    advanceQuote()
                 }
                 .gesture(
                     DragGesture(minimumDistance: 18)
@@ -31,13 +34,27 @@ struct ContentView: View {
                                   abs(value.translation.width) > abs(value.translation.height)
                             else { return }
 
-                            WKInterfaceDevice.current().play(.click)
-                            viewModel.newQuote()
+                            advanceQuote()
                         }
                 )
                 .accessibilityAction(named: "New Quote") {
-                    viewModel.newQuote()
+                    advanceQuote()
                 }
+            }
+            .focusable(true, interactions: .edit)
+            .focused($isQuoteFocused)
+            .digitalCrownRotation(
+                detent: $crownDetent,
+                from: -10_000,
+                through: 10_000,
+                by: 1,
+                sensitivity: .medium,
+                isContinuous: false,
+                isHapticFeedbackEnabled: true
+            ) { _ in
+                hasPendingCrownAdvance = true
+            } onIdle: {
+                advanceQuoteFromCrownIfNeeded()
             }
             .navigationTitle("Healing")
             .toolbar {
@@ -57,8 +74,27 @@ struct ContentView: View {
             }
             .task {
                 await viewModel.prepareForLaunch()
+                isQuoteFocused = true
+            }
+            .onChange(of: showingSettings) { _, isShowing in
+                if isShowing == false {
+                    isQuoteFocused = true
+                }
             }
         }
+    }
+
+    private func advanceQuoteFromCrownIfNeeded() {
+        guard hasPendingCrownAdvance else { return }
+
+        hasPendingCrownAdvance = false
+        crownDetent = 0
+        advanceQuote()
+    }
+
+    private func advanceQuote() {
+        WKInterfaceDevice.current().play(.click)
+        viewModel.newQuote()
     }
 }
 

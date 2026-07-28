@@ -52,7 +52,10 @@ struct SettingsView: View {
     private var frequencyBinding: Binding<NotificationFrequency> {
         Binding(
             get: { viewModel.settings.notificationFrequency },
-            set: { viewModel.settings.notificationFrequency = $0 }
+            set: { frequency in
+                viewModel.settings.notificationFrequency = frequency
+                rescheduleNotificationsIfNeeded()
+            }
         )
     }
 
@@ -62,9 +65,12 @@ struct SettingsView: View {
             set: { isEnabled in
                 viewModel.settings.notificationsEnabled = isEnabled
                 if isEnabled, viewModel.settings.notificationFrequency == .disabled {
-                    viewModel.settings.notificationFrequency = .everyFourHours
+                    viewModel.settings.notificationFrequency = .everyHour
                 }
-                if isEnabled == false {
+
+                if isEnabled {
+                    Task { await viewModel.scheduleNotifications() }
+                } else {
                     viewModel.settings.notificationFrequency = .disabled
                     viewModel.clearNotifications()
                 }
@@ -87,5 +93,13 @@ struct SettingsView: View {
                 viewModel.settingsDidChange()
             }
         )
+    }
+
+    private func rescheduleNotificationsIfNeeded() {
+        if viewModel.settings.notificationFrequency.isEnabled {
+            Task { await viewModel.scheduleNotifications() }
+        } else {
+            viewModel.clearNotifications()
+        }
     }
 }

@@ -93,7 +93,7 @@ final class QuoteViewModel: ObservableObject {
     }
 
     private func randomQuote(excluding quote: Quote? = nil) -> Quote {
-        let candidates = quotes.filter { $0.id != quote?.id }
+        let candidates = quotes.filter { $0 != quote }
         return candidates.randomElement() ?? quotes.randomElement() ?? quoteStore.randomQuote(excluding: quote)
     }
 

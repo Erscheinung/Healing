@@ -10,7 +10,8 @@ struct QuoteCardView: View {
                 .font(.system(.title3, design: .rounded, weight: .semibold))
                 .foregroundStyle(quote.colors.foreground)
                 .multilineTextAlignment(.leading)
-                .minimumScaleFactor(0.78)
+                .lineLimit(6)
+                .minimumScaleFactor(0.62)
                 .contentTransition(.opacity)
 
             if showAuthor, let author = quote.author, author.isEmpty == false {
