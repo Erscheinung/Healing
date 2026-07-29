@@ -1,11 +1,11 @@
 import Foundation
 import WatchConnectivity
+import WidgetKit
 
 @MainActor
 final class WatchQuoteSyncManager: NSObject {
     static let quotesDidChangeNotification = Notification.Name("WatchQuoteSyncManager.quotesDidChange")
 
-    private static let storageKey = "healing.syncedQuotes"
     private let session: WCSession?
 
     override init() {
@@ -23,14 +23,7 @@ final class WatchQuoteSyncManager: NSObject {
     }
 
     static func loadSyncedQuotes() -> [Quote]? {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let quotes = try? JSONDecoder().decode([Quote].self, from: data),
-              quotes.isEmpty == false
-        else {
-            return nil
-        }
-
-        return quotes
+        QuoteStore.loadSyncedQuotes()
     }
 
     private func applyApplicationContext() {
@@ -39,13 +32,9 @@ final class WatchQuoteSyncManager: NSObject {
     }
 
     private func save(data: Data) {
-        guard let quotes = try? JSONDecoder().decode([Quote].self, from: data),
-              quotes.isEmpty == false
-        else {
-            return
-        }
+        guard let quotes = QuoteStore.saveSyncedQuotesData(data) else { return }
 
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
+        WidgetCenter.shared.reloadTimelines(ofKind: QuoteStore.widgetKind)
         NotificationCenter.default.post(name: Self.quotesDidChangeNotification, object: quotes)
     }
 }

@@ -6,6 +6,9 @@ struct QuoteStore: Sendable {
     }
 
     static let shared = QuoteStore()
+    static let appGroupIdentifier = "group.com.Erscheinung.Healing"
+    static let syncedQuotesStorageKey = "healing.syncedQuotes"
+    static let widgetKind = "HealingQuoteWidget"
 
     private let quotes: [Quote]
 
@@ -33,6 +36,32 @@ struct QuoteStore: Sendable {
 
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode([Quote].self, from: data)
+    }
+
+    static func loadSyncedQuotes() -> [Quote]? {
+        guard let data = sharedDefaults.data(forKey: syncedQuotesStorageKey),
+              let quotes = try? JSONDecoder().decode([Quote].self, from: data),
+              quotes.isEmpty == false
+        else {
+            return nil
+        }
+
+        return quotes
+    }
+
+    static func saveSyncedQuotesData(_ data: Data) -> [Quote]? {
+        guard let quotes = try? JSONDecoder().decode([Quote].self, from: data),
+              quotes.isEmpty == false
+        else {
+            return nil
+        }
+
+        sharedDefaults.set(data, forKey: syncedQuotesStorageKey)
+        return quotes
+    }
+
+    private static var sharedDefaults: UserDefaults {
+        UserDefaults(suiteName: appGroupIdentifier) ?? .standard
     }
 
     private static let fallbackQuotes: [Quote] = [

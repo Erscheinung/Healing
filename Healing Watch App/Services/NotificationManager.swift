@@ -30,15 +30,17 @@ final class NotificationManager {
         }
     }
 
-    func schedulePulses(frequency: NotificationFrequency) async throws {
+    func schedulePulses(frequency: NotificationFrequency) async throws -> Int {
         center.removePendingNotificationRequests(withIdentifiers: Self.managedIdentifiers)
 
-        guard frequency.isEnabled else { return }
+        guard frequency.isEnabled else { return 0 }
 
         let requests = makeRequests(for: frequency)
         for request in requests {
             try await center.add(request)
         }
+
+        return requests.count
     }
 
     func clearScheduledNotifications() {
@@ -46,20 +48,24 @@ final class NotificationManager {
     }
 
     private func makeRequests(for frequency: NotificationFrequency) -> [UNNotificationRequest] {
-        let dates = Self.scheduleDates(for: frequency)
+        let dates = Self.upcomingDates(for: frequency, limit: Self.maximumScheduledPulses)
+        let quotes = QuoteStore.loadSyncedQuotes() ?? quoteStore.allQuotes
+        let availableQuotes = quotes.isEmpty ? [quoteStore.randomQuote()] : quotes
 
-        // watchOS does not allow arbitrary always-on background execution. Local notifications
-        // must be scheduled ahead of time, may be coalesced or delayed by the system, and use the
-        // standard notification haptic/sound behavior controlled by watchOS and user settings.
-        return dates.enumerated().map { index, dateComponents in
-            let quote = quoteStore.randomQuote()
+        return dates.enumerated().map { index, date in
+            let quote = availableQuotes[index % availableQuotes.count]
             let content = UNMutableNotificationContent()
             content.title = "Healing"
             content.body = quote.author.map { "\(quote.text) - \($0)" } ?? quote.text
             content.sound = .default
+            content.interruptionLevel = .timeSensitive
             content.userInfo = ["quoteID": quote.id]
 
-            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+            let dateComponents = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: date
+            )
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
             return UNNotificationRequest(
                 identifier: Self.managedIdentifiers[index],
                 content: content,
@@ -68,53 +74,79 @@ final class NotificationManager {
         }
     }
 
-    private static func scheduleDates(for frequency: NotificationFrequency) -> [DateComponents] {
+    private static func upcomingDates(
+        for frequency: NotificationFrequency,
+        from now: Date = Date(),
+        calendar: Calendar = .current,
+        limit: Int
+    ) -> [Date] {
+        guard frequency.isEnabled else { return [] }
+
+        var dates: [Date] = []
+        var dayOffset = 0
+        while dates.count < limit, dayOffset < 90 {
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: startOfDay(for: now, calendar: calendar)) else {
+                dayOffset += 1
+                continue
+            }
+
+            let dayDates = times(for: frequency).compactMap { time in
+                calendar.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: day)
+            }
+            .filter { $0 > now }
+
+            dates.append(contentsOf: dayDates)
+            dayOffset += 1
+        }
+
+        return Array(dates.sorted().prefix(limit))
+    }
+
+    private static func times(for frequency: NotificationFrequency) -> [(hour: Int, minute: Int)] {
         switch frequency {
         case .disabled:
             return []
         case .everyHour:
-            return hourlyDates(from: 8, through: 20, step: 1)
+            return hourlyTimes(from: 8, through: 20, step: 1)
         case .everyTwoHours:
-            return hourlyDates(from: 8, through: 20, step: 2)
+            return hourlyTimes(from: 8, through: 20, step: 2)
         case .everyFourHours:
-            return [8, 12, 16, 20].map { dateComponents(hour: $0) }
+            return [8, 12, 16, 20].map { ($0, 0) }
         case .everySixHours:
-            return [8, 14, 20].map { dateComponents(hour: $0) }
+            return [8, 14, 20].map { ($0, 0) }
         case .morningOnly:
-            return [dateComponents(hour: 8)]
+            return [(8, 0)]
         case .eveningOnly:
-            return [dateComponents(hour: 19)]
+            return [(19, 0)]
         case .eveningQuarterHourly:
-            return eveningQuarterHourlyDates()
+            return eveningQuarterHourlyTimes()
         }
     }
 
-    private static func hourlyDates(from startHour: Int, through endHour: Int, step: Int) -> [DateComponents] {
-        Array(stride(from: startHour, through: endHour, by: step)).map { dateComponents(hour: $0) }
+    private static func hourlyTimes(from startHour: Int, through endHour: Int, step: Int) -> [(hour: Int, minute: Int)] {
+        Array(stride(from: startHour, through: endHour, by: step)).map { ($0, 0) }
     }
 
-    private static func eveningQuarterHourlyDates() -> [DateComponents] {
+    private static func eveningQuarterHourlyTimes() -> [(hour: Int, minute: Int)] {
         let eveningHours = (18...23).flatMap { hour in
             [0, 15, 30, 45].map { minute in
-                dateComponents(hour: hour, minute: minute)
+                (hour, minute)
             }
         }
 
         let afterMidnight = [0].flatMap { hour in
             [0, 15, 30, 45].map { minute in
-                dateComponents(hour: hour, minute: minute)
+                (hour, minute)
             }
         }
 
-        return eveningHours + afterMidnight + [dateComponents(hour: 1)]
+        return eveningHours + afterMidnight + [(1, 0)]
     }
 
-    private static func dateComponents(hour: Int, minute: Int = 0) -> DateComponents {
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-        return components
+    private static func startOfDay(for date: Date, calendar: Calendar) -> Date {
+        calendar.startOfDay(for: date)
     }
 
-    private static let managedIdentifiers = (0..<64).map { "healing.quote-pulse.\($0)" }
+    private static let maximumScheduledPulses = 64
+    private static let managedIdentifiers = (0..<maximumScheduledPulses).map { "healing.quote-pulse.\($0)" }
 }

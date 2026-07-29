@@ -8,37 +8,59 @@ struct HealingQuoteEntry: TimelineEntry {
 
 struct HealingQuoteProvider: TimelineProvider {
     private let quoteStore = QuoteStore.shared
+    private let calendar = Calendar.current
 
     func placeholder(in context: Context) -> HealingQuoteEntry {
         HealingQuoteEntry(date: Date(), quote: quoteStore.randomQuote())
     }
 
     func getSnapshot(in context: Context, completion: @escaping (HealingQuoteEntry) -> Void) {
-        completion(HealingQuoteEntry(date: Date(), quote: quoteStore.randomQuote()))
+        completion(HealingQuoteEntry(date: Date(), quote: currentQuote(at: Date())))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HealingQuoteEntry>) -> Void) {
         let now = Date()
-        let quotes = quoteStore.allQuotes.isEmpty ? [quoteStore.randomQuote()] : quoteStore.allQuotes
-
-        // WidgetKit timelines are suggestions, not timers. watchOS decides when to reload,
-        // may throttle frequent updates, and can keep an older entry visible to preserve power.
-        let entries = (0..<8).map { index in
-            HealingQuoteEntry(
-                date: Calendar.current.date(byAdding: .hour, value: index * 2, to: now) ?? now,
-                quote: quotes[index % quotes.count]
-            )
+        let startDate = roundedDownToQuarterHour(now)
+        let entries = (0..<48).map { index in
+            let entryDate = calendar.date(byAdding: .minute, value: index * 15, to: startDate) ?? now
+            return HealingQuoteEntry(date: entryDate, quote: currentQuote(at: entryDate))
         }
 
-        completion(Timeline(entries: entries, policy: .after(Calendar.current.date(byAdding: .hour, value: 16, to: now) ?? now)))
+        completion(Timeline(entries: entries, policy: .atEnd))
+    }
+
+    private func currentQuote(at date: Date) -> Quote {
+        let quotes = availableQuotes
+        let timeSlot = Int(date.timeIntervalSinceReferenceDate / (15 * 60))
+        let index = positiveModulo(timeSlot, quotes.count)
+        return quotes[index]
+    }
+
+    private var availableQuotes: [Quote] {
+        let quotes = QuoteStore.loadSyncedQuotes() ?? quoteStore.allQuotes
+        return quotes.isEmpty ? [quoteStore.randomQuote()] : quotes
+    }
+
+    private func roundedDownToQuarterHour(_ date: Date) -> Date {
+        let minute = calendar.component(.minute, from: date)
+        let roundedMinute = minute - (minute % 15)
+        var components = calendar.dateComponents([.year, .month, .day, .hour], from: date)
+        components.minute = roundedMinute
+        components.second = 0
+        return calendar.date(from: components) ?? date
+    }
+
+    private func positiveModulo(_ value: Int, _ divisor: Int) -> Int {
+        let remainder = value % divisor
+        return remainder >= 0 ? remainder : remainder + divisor
     }
 }
 
 struct HealingQuoteWidget: Widget {
-    let kind = "HealingQuoteWidget"
+    static let kind = QuoteStore.widgetKind
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: HealingQuoteProvider()) { entry in
+        StaticConfiguration(kind: Self.kind, provider: HealingQuoteProvider()) { entry in
             HealingQuoteWidgetView(entry: entry)
                 .widgetURL(URL(string: "healing://quote/\(entry.quote.id)"))
         }

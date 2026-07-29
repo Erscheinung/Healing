@@ -41,7 +41,11 @@ final class QuoteViewModel: ObservableObject {
     }
 
     func prepareForLaunch() async {
-        _ = await notificationManager.requestAuthorizationIfNeeded()
+        let allowed = await notificationManager.requestAuthorizationIfNeeded()
+        if allowed, settings.notificationFrequency.isEnabled {
+            _ = try? await notificationManager.schedulePulses(frequency: settings.notificationFrequency)
+        }
+
         if settings.randomiseOnLaunch {
             newQuote()
         }
@@ -71,8 +75,8 @@ final class QuoteViewModel: ObservableObject {
         }
 
         do {
-            try await notificationManager.schedulePulses(frequency: settings.notificationFrequency)
-            notificationMessage = settings.notificationFrequency.isEnabled ? "Pulses scheduled." : "Notifications disabled."
+            let scheduledCount = try await notificationManager.schedulePulses(frequency: settings.notificationFrequency)
+            notificationMessage = scheduledMessage(for: scheduledCount)
         } catch {
             notificationMessage = "Unable to schedule pulses."
         }
@@ -81,6 +85,17 @@ final class QuoteViewModel: ObservableObject {
     func clearNotifications() {
         notificationManager.clearScheduledNotifications()
         notificationMessage = "Scheduled pulses cleared."
+    }
+
+    private func scheduledMessage(for scheduledCount: Int) -> String {
+        guard settings.notificationFrequency.isEnabled else { return "Notifications disabled." }
+        guard scheduledCount > 0 else { return "No upcoming pulses found for this frequency." }
+
+        if scheduledCount == 1 {
+            return "1 pulse scheduled."
+        }
+
+        return "\(scheduledCount) pulses scheduled."
     }
 
     private func useSyncedQuotes(_ syncedQuotes: [Quote]) {
