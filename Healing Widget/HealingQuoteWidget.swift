@@ -119,18 +119,18 @@ struct HealingQuoteWidgetView: View {
 
     private var rectangularView: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(shortText(maxCharacters: 72))
-                .font(.system(.caption, design: .rounded, weight: .semibold))
-                .foregroundStyle(entry.quote.colors.foreground)
-                .lineLimit(3)
-                .minimumScaleFactor(0.75)
-
             if let author = entry.quote.author {
                 Text(author)
-                    .font(.system(.caption2, design: .rounded, weight: .medium))
-                    .foregroundStyle(entry.quote.colors.foreground.opacity(0.7))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(entry.quote.colors.foreground)
                     .lineLimit(1)
             }
+
+            Text(shortText(maxCharacters: 72))
+                .font(.system(.caption2, design: .rounded, weight: .medium))
+                .foregroundStyle(entry.quote.colors.foreground.opacity(0.7))
+                .lineLimit(3)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .containerBackground(entry.quote.colors.background, for: .widget)
