@@ -113,12 +113,14 @@ final class QuoteLibraryViewModel: ObservableObject {
     }
 
     private func load() {
+        let bundledQuotes = QuoteStore.shared.allQuotes
+
         if let data = UserDefaults.standard.data(forKey: storageKey),
-           let decoded = try? JSONDecoder().decode([Quote].self, from: data),
-           decoded.isEmpty == false {
-            quotes = decoded
+           let savedQuotes = try? JSONDecoder().decode([Quote].self, from: data),
+           savedQuotes.isEmpty == false {
+            quotes = savedQuotes.mergingNewBundledQuotes(from: bundledQuotes)
         } else {
-            quotes = QuoteStore.shared.allQuotes
+            quotes = bundledQuotes
         }
     }
 
@@ -134,5 +136,17 @@ final class QuoteLibraryViewModel: ObservableObject {
 
     private func uniqueValues(_ values: [String]) -> [String] {
         Array(Set(values)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+}
+
+private extension Array where Element == Quote {
+    func mergingNewBundledQuotes(from bundledQuotes: [Quote]) -> [Quote] {
+        let savedIDs = Set(map(\.id))
+        let bundledIDs = Set(bundledQuotes.map(\.id))
+        let newestSavedBundledID = savedIDs.intersection(bundledIDs).max() ?? 0
+        let newBundledQuotes = bundledQuotes.filter { quote in
+            quote.id > newestSavedBundledID && savedIDs.contains(quote.id) == false
+        }
+        return self + newBundledQuotes
     }
 }
