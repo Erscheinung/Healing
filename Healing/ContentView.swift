@@ -6,28 +6,30 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    ForEach(viewModel.quotes) { quote in
-                        Button {
-                            viewModel.edit(quote)
-                        } label: {
-                            QuoteRow(quote: quote)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                if let index = viewModel.quotes.firstIndex(of: quote) {
-                                    viewModel.delete(at: IndexSet(integer: index))
-                                }
+                ForEach(viewModel.practiceSections, id: \.title) { section in
+                    Section(section.title) {
+                        ForEach(section.quotes) { quote in
+                            Button {
+                                viewModel.edit(quote)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                QuoteRow(quote: quote)
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    viewModel.delete(quote)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
+                        .onDelete { offsets in
+                            viewModel.delete(quotes: section.quotes, at: offsets)
+                        }
                     }
-                    .onDelete(perform: viewModel.delete)
-                } header: {
-                    Text("Quotes")
-                } footer: {
+                }
+
+                Section {
                     Text(viewModel.syncStatus)
                 }
             }
@@ -60,6 +62,7 @@ struct ContentView: View {
                         quote: quote,
                         themes: viewModel.themes,
                         authors: viewModel.authors,
+                        practices: viewModel.practices,
                         backgroundColors: viewModel.backgroundColors,
                         foregroundColors: viewModel.foregroundColors,
                         accentColors: viewModel.accentColors

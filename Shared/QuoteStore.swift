@@ -69,6 +69,7 @@ struct QuoteStore: Sendable {
             id: 0,
             text: "Return to this breath. It is enough for now.",
             author: "Healing",
+            practice: nil,
             theme: "Calm",
             backgroundColor: "#EAF5F4",
             foregroundColor: "#123456",

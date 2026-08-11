@@ -4,6 +4,7 @@ struct Quote: Codable, Identifiable, Equatable, Hashable, Sendable {
     let id: Int
     let text: String
     let author: String?
+    let practice: String?
     let theme: String
     let backgroundColor: String
     let foregroundColor: String

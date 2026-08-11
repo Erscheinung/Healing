@@ -4,6 +4,11 @@ import SwiftUI
 
 @MainActor
 final class QuoteLibraryViewModel: ObservableObject {
+    struct PracticeSection {
+        let title: String
+        let quotes: [Quote]
+    }
+
     @Published var quotes: [Quote] = [] {
         didSet {
             guard isLoaded else { return }
@@ -32,6 +37,10 @@ final class QuoteLibraryViewModel: ObservableObject {
         uniqueValues(quotes.map(\.theme))
     }
 
+    var practices: [String] {
+        uniqueValues(quotes.compactMap(\.practice))
+    }
+
     var authors: [String] {
         uniqueValues(quotes.compactMap(\.author).filter { $0.isEmpty == false })
     }
@@ -48,12 +57,23 @@ final class QuoteLibraryViewModel: ObservableObject {
         uniqueValues(quotes.map(\.accentColor))
     }
 
+    var practiceSections: [PracticeSection] {
+        let categories = ["Practice for Yourself", "Practice for Musku"]
+        let grouped = categories.compactMap { category -> PracticeSection? in
+            let matchingQuotes = quotes.filter { $0.practice == category }
+            return matchingQuotes.isEmpty ? nil : PracticeSection(title: category, quotes: matchingQuotes)
+        }
+        let generalQuotes = quotes.filter { $0.practice == nil }
+        return grouped + (generalQuotes.isEmpty ? [] : [PracticeSection(title: "General", quotes: generalQuotes)])
+    }
+
     func addQuote() {
         let template = quotes.first ?? QuoteStore.shared.randomQuote()
         selectedQuote = Quote(
             id: nextID(),
             text: "",
             author: template.author,
+            practice: template.practice,
             theme: template.theme,
             backgroundColor: template.backgroundColor,
             foregroundColor: template.foregroundColor,
@@ -77,6 +97,15 @@ final class QuoteLibraryViewModel: ObservableObject {
 
     func delete(at offsets: IndexSet) {
         quotes.remove(atOffsets: offsets)
+    }
+
+    func delete(_ quote: Quote) {
+        quotes.removeAll { $0.id == quote.id }
+    }
+
+    func delete(quotes sectionQuotes: [Quote], at offsets: IndexSet) {
+        let ids = offsets.map { sectionQuotes[$0].id }
+        quotes.removeAll { ids.contains($0.id) }
     }
 
     func restoreBundledQuotes() {

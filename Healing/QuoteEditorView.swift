@@ -6,6 +6,7 @@ struct QuoteEditorView: View {
 
     @State private var text: String
     @State private var author: String
+    @State private var practice: String
     @State private var theme: String
     @State private var backgroundColor: String
     @State private var foregroundColor: String
@@ -14,6 +15,7 @@ struct QuoteEditorView: View {
     let quote: Quote
     let themes: [String]
     let authors: [String]
+    let practices: [String]
     let backgroundColors: [String]
     let foregroundColors: [String]
     let accentColors: [String]
@@ -23,6 +25,7 @@ struct QuoteEditorView: View {
         quote: Quote,
         themes: [String],
         authors: [String],
+        practices: [String],
         backgroundColors: [String],
         foregroundColors: [String],
         accentColors: [String],
@@ -31,6 +34,7 @@ struct QuoteEditorView: View {
         self.quote = quote
         self.themes = themes
         self.authors = authors
+        self.practices = practices
         self.backgroundColors = backgroundColors
         self.foregroundColors = foregroundColors
         self.accentColors = accentColors
@@ -38,6 +42,7 @@ struct QuoteEditorView: View {
 
         _text = State(initialValue: quote.text)
         _author = State(initialValue: quote.author ?? "")
+        _practice = State(initialValue: quote.practice ?? "")
         _theme = State(initialValue: quote.theme)
         _backgroundColor = State(initialValue: quote.backgroundColor)
         _foregroundColor = State(initialValue: quote.foregroundColor)
@@ -58,6 +63,11 @@ struct QuoteEditorView: View {
                 }
 
                 Section("Theme") {
+                    TextField("Practice", text: $practice)
+                        .textInputAutocapitalization(.words)
+
+                    ExistingValuePicker(title: "Practice", values: practices, selection: $practice)
+
                     TextField("Theme", text: $theme)
                         .textInputAutocapitalization(.words)
 
@@ -106,6 +116,7 @@ struct QuoteEditorView: View {
             id: quote.id,
             text: text.trimmingCharacters(in: .whitespacesAndNewlines),
             author: author.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            practice: practice.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             theme: theme.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "Custom",
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
