@@ -9,6 +9,7 @@ enum NotificationFrequency: String, CaseIterable, Identifiable, Sendable {
     case morningOnly
     case eveningOnly
     case eveningQuarterHourly
+    case everyFifteenMinutes
 
     var id: String { rawValue }
 
@@ -30,6 +31,8 @@ enum NotificationFrequency: String, CaseIterable, Identifiable, Sendable {
             "Evening only"
         case .eveningQuarterHourly:
             "6 PM-1 AM, every 15 min"
+        case .everyFifteenMinutes:
+            "Every 15 minutes"
         }
     }
 

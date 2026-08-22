@@ -11,8 +11,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                viewModel.quote.colors.background
-                    .opacity(0.26)
+                Color(red: 0.035, green: 0.035, blue: 0.04)
                     .ignoresSafeArea()
 
                 QuoteCardView(

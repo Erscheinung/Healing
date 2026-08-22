@@ -15,9 +15,18 @@ struct SettingsView: View {
 
                 Toggle("Enabled", isOn: notificationsEnabledBinding)
 
-                Button("Schedule Pulses") {
+                Button {
                     Task { await viewModel.scheduleNotifications() }
+                } label: {
+                    if viewModel.isSchedulingNotifications {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Scheduling…")
+                    } else {
+                        Label("Schedule Pulses", systemImage: "bell.badge")
+                    }
                 }
+                .disabled(viewModel.isSchedulingNotifications)
 
                 Button("Clear Scheduled Notifications", role: .destructive) {
                     viewModel.clearNotifications()
@@ -35,9 +44,14 @@ struct SettingsView: View {
 
             if let message = viewModel.notificationMessage {
                 Section {
-                    Text(message)
+                    Label(
+                        message,
+                        systemImage: message.contains("Unable") || message.contains("disabled")
+                            ? "exclamationmark.triangle"
+                            : "checkmark.circle"
+                    )
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(message.contains("Unable") || message.contains("disabled") ? .orange : .green)
                 }
             }
         }
@@ -54,6 +68,7 @@ struct SettingsView: View {
             get: { viewModel.settings.notificationFrequency },
             set: { frequency in
                 viewModel.settings.notificationFrequency = frequency
+                viewModel.notificationMessage = frequency.isEnabled ? "Updating pulse schedule…" : "Pulses disabled."
                 rescheduleNotificationsIfNeeded()
             }
         )

@@ -5,6 +5,7 @@ import Combine
 final class QuoteViewModel: ObservableObject {
     @Published private(set) var quote: Quote
     @Published var notificationMessage: String?
+    @Published private(set) var isSchedulingNotifications = false
 
     let settings: SettingsManager
 
@@ -21,7 +22,10 @@ final class QuoteViewModel: ObservableObject {
         notificationManager: NotificationManager = .shared
     ) {
         self.quoteStore = quoteStore
-        self.quotes = WatchQuoteSyncManager.loadSyncedQuotes() ?? quoteStore.allQuotes
+        self.quotes = Self.mergeQuotes(
+            synced: WatchQuoteSyncManager.loadSyncedQuotes(),
+            bundled: quoteStore.allQuotes
+        )
         self.quoteSyncManager = quoteSyncManager
         self.settings = settings
         self.notificationManager = notificationManager
@@ -67,6 +71,11 @@ final class QuoteViewModel: ObservableObject {
     }
 
     func scheduleNotifications() async {
+        guard isSchedulingNotifications == false else { return }
+
+        isSchedulingNotifications = true
+        defer { isSchedulingNotifications = false }
+
         let allowed = await notificationManager.requestAuthorizationIfNeeded()
         guard allowed else {
             settings.notificationsEnabled = false
@@ -101,10 +110,18 @@ final class QuoteViewModel: ObservableObject {
     private func useSyncedQuotes(_ syncedQuotes: [Quote]) {
         guard syncedQuotes.isEmpty == false else { return }
 
-        quotes = syncedQuotes
+        quotes = Self.mergeQuotes(synced: syncedQuotes, bundled: quoteStore.allQuotes)
         if quotes.contains(where: { $0.id == quote.id }) == false {
             newQuote()
         }
+    }
+
+    private static func mergeQuotes(synced: [Quote]?, bundled: [Quote]) -> [Quote] {
+        var mergedByID = Dictionary(uniqueKeysWithValues: bundled.map { ($0.id, $0) })
+        for quote in synced ?? [] {
+            mergedByID[quote.id] = quote
+        }
+        return mergedByID.values.sorted { $0.id < $1.id }
     }
 
     private func randomQuote(excluding quote: Quote? = nil) -> Quote {

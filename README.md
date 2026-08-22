@@ -88,6 +88,7 @@ The app asks for notification permission on first launch. In Settings, choose a 
 Supported schedules:
 
 - Every 2 hours
+- Every 15 minutes
 - Every 4 hours
 - Every 6 hours
 - Morning only

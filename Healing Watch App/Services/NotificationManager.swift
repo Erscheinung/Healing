@@ -49,11 +49,15 @@ final class NotificationManager {
 
     private func makeRequests(for frequency: NotificationFrequency) -> [UNNotificationRequest] {
         let dates = Self.upcomingDates(for: frequency, limit: Self.maximumScheduledPulses)
-        let quotes = QuoteStore.loadSyncedQuotes() ?? quoteStore.allQuotes
-        let availableQuotes = quotes.isEmpty ? [quoteStore.randomQuote()] : quotes
+        var quotesByID = Dictionary(uniqueKeysWithValues: quoteStore.allQuotes.map { ($0.id, $0) })
+        for quote in QuoteStore.loadSyncedQuotes() ?? [] {
+            quotesByID[quote.id] = quote
+        }
+        let availableQuotes = quotesByID.values.shuffled()
+        let fallbackQuotes = availableQuotes.isEmpty ? [quoteStore.randomQuote()] : availableQuotes
 
         return dates.enumerated().map { index, date in
-            let quote = availableQuotes[index % availableQuotes.count]
+            let quote = fallbackQuotes[index % fallbackQuotes.count]
             let content = UNMutableNotificationContent()
             content.title = "Healing"
             content.body = quote.author.map { "\(quote.text) - \($0)" } ?? quote.text
@@ -120,6 +124,10 @@ final class NotificationManager {
             return [(19, 0)]
         case .eveningQuarterHourly:
             return eveningQuarterHourlyTimes()
+        case .everyFifteenMinutes:
+            return Array(8...20).flatMap { hour in
+                [0, 15, 30, 45].map { minute in (hour, minute) }
+            }
         }
     }
 
