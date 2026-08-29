@@ -24,9 +24,9 @@ struct Quote: Codable, Identifiable, Equatable, Hashable, Sendable {
 
     var colors: QuoteTheme {
         QuoteTheme(
-            background: Color(hex: backgroundColor, fallback: .black),
-            foreground: Color(hex: foregroundColor, fallback: .primary),
-            accent: Color(hex: accentColor, fallback: .accentColor)
+            background: Color(hex: backgroundColor, fallback: QuoteTheme.fallback.background),
+            foreground: Color(hex: foregroundColor, fallback: QuoteTheme.fallback.foreground),
+            accent: Color(hex: accentColor, fallback: QuoteTheme.fallback.accent)
         )
     }
 }
@@ -35,6 +35,12 @@ struct QuoteTheme {
     let background: Color
     let foreground: Color
     let accent: Color
+
+    static let fallback = QuoteTheme(
+        background: Color(hex: "#EAF5F4", fallback: .black),
+        foreground: Color(hex: "#123456", fallback: .white),
+        accent: Color(hex: "#7FB3AC", fallback: .secondary)
+    )
 }
 
 extension Color {

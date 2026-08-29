@@ -2,14 +2,14 @@ import Foundation
 
 enum NotificationFrequency: String, CaseIterable, Identifiable, Sendable {
     case disabled
+    case everyFifteenMinutes
+    case eveningQuarterHourly
     case everyHour
     case everyTwoHours
     case everyFourHours
     case everySixHours
     case morningOnly
     case eveningOnly
-    case eveningQuarterHourly
-    case everyFifteenMinutes
 
     var id: String { rawValue }
 
@@ -17,6 +17,10 @@ enum NotificationFrequency: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .disabled:
             "Disabled"
+        case .everyFifteenMinutes:
+            "Every 15 minutes"
+        case .eveningQuarterHourly:
+            "6 PM-1 AM, every 15 min"
         case .everyHour:
             "Every hour"
         case .everyTwoHours:
@@ -29,10 +33,6 @@ enum NotificationFrequency: String, CaseIterable, Identifiable, Sendable {
             "Morning only"
         case .eveningOnly:
             "Evening only"
-        case .eveningQuarterHourly:
-            "6 PM-1 AM, every 15 min"
-        case .everyFifteenMinutes:
-            "Every 15 minutes"
         }
     }
 
