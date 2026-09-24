@@ -45,6 +45,50 @@ Shared/
 - WidgetKit complication support for `accessoryCircular`, `accessoryRectangular`, `accessoryInline`, and `accessoryCorner` where supported by the active SDK.
 - No backend, no cloud services, and no third-party dependencies.
 
+## Import Apple Notes on iPhone
+
+Tap **Import Notes** in Healing, choose the practice, and tap **Open Source Note**.
+Copy the note's text and return to Healing to paste it, or use Notes' **Export as
+Markdown**, save to Files, and choose that file in Healing. Choose **Each line**
+for a list of quotes or **Paragraphs** for multiline passages separated by blank
+lines. Tap **Find New Quotes**, review the preview, then **Import New Quotes**.
+New entries are saved to the phone library and sent through the existing Watch
+sync connection.
+
+This is a manual import: Apple Notes has no public iOS API for fetching a note or
+browsing its contents from another app. The source link opens Notes/iCloud; it is
+not a text download endpoint. See [Apple's API guidance](https://developer.apple.com/forums/thread/813810)
+and [Apple's export instructions](https://support.apple.com/guide/iphone/export-or-print-notes-iphdf551cfa2/ios).
+
+The importer compares the entire note against the current library and remembered
+imports. It reports the last known matching entry but also finds new entries
+inserted before that point. Case, whitespace, smart quotes, and typographic dash
+differences are normalized. Repeated imports do not add duplicates; previously
+imported entries remain remembered even if deleted from Healing. Edited wording
+is treated as new text. Images, image Markdown/HTML, Markdown headings, and the
+practice title are excluded; there is no OCR. Other plain-text headings can be
+removed from the editable text before previewing.
+
+### Private configuration
+
+Private source links are stored on the device. For personal builds, the optional
+gitignored `Healing/NotesSources.private.json` supplies initial links as a JSON
+dictionary keyed by practice name. Xcode includes this local file in the iPhone
+app when present. Without it, enter the links in the import screen. Never publish
+this private resource or a personal app bundle containing it.
+
+`Shared/Quotes.json`, `Healing/NotesSources.private.json`, and `PrivateNotes/` are
+gitignored. Keep any local note exports in `PrivateNotes/`; do not put them in
+tracked source or test fixtures. Imported text and fingerprints are stored on the
+device, not written into the repository. Tests use synthetic text only.
+
+Run the importer regression checks on macOS:
+
+```sh
+xcrun swiftc Healing/NotesImportEngine.swift Tests/NotesImportEngineTests.swift -o /tmp/healing-notes-tests
+/tmp/healing-notes-tests
+```
+
 ## Build Instructions
 
 1. Open `/Users/kartikeyachaauhan/Documents/New project/Healing/Healing.xcodeproj` in Xcode.

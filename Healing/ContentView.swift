@@ -2,10 +2,18 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = QuoteLibraryViewModel()
+    @State private var isShowingNotesImport = false
 
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Button {
+                        isShowingNotesImport = true
+                    } label: {
+                        Label("Import Notes", systemImage: "square.and.arrow.down")
+                    }
+                }
                 ForEach(viewModel.practiceSections, id: \.title) { section in
                     Section(section.title) {
                         ForEach(section.quotes) { quote in
@@ -70,6 +78,9 @@ struct ContentView: View {
                         viewModel.save(updatedQuote)
                     }
                 }
+            }
+            .sheet(isPresented: $isShowingNotesImport) {
+                NotesImportView(library: viewModel)
             }
         }
     }

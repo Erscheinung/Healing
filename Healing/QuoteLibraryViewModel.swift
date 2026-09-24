@@ -112,6 +112,34 @@ final class QuoteLibraryViewModel: ObservableObject {
         quotes = QuoteStore.shared.allQuotes
     }
 
+    func notesPreview(text: String, source: String, grouping: NotesImportEngine.Grouping) -> NotesImportEngine.Preview {
+        NotesImportEngine.preview(text: text, grouping: grouping, existing: quotes.map(\.text),
+                                  remembered: Set(UserDefaults.standard.stringArray(forKey: notesHistoryKey(source)) ?? []))
+    }
+
+    @discardableResult
+    func importNotes(text: String, source: String, grouping: NotesImportEngine.Grouping) -> Int {
+        // Recompute at confirmation time so changes to the library cannot create duplicates.
+        let preview = notesPreview(text: text, source: source, grouping: grouping)
+        let firstID = nextID()
+        let template = quotes.first(where: { $0.practice == source }) ?? QuoteStore.shared.randomQuote()
+        let additions = preview.newEntries.enumerated().map { offset, text in
+            Quote(id: firstID + offset, text: text, author: nil, practice: source,
+                  theme: template.theme, backgroundColor: template.backgroundColor,
+                  foregroundColor: template.foregroundColor, accentColor: template.accentColor)
+        }
+        if !additions.isEmpty { quotes += additions }
+        let key = notesHistoryKey(source)
+        let history = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+            .union(preview.entries.map(NotesImportEngine.fingerprint))
+        UserDefaults.standard.set(Array(history), forKey: key)
+        return additions.count
+    }
+
+    private func notesHistoryKey(_ source: String) -> String {
+        "healing.notes.fingerprints.\(source)"
+    }
+
     private func load() {
         let bundledQuotes = QuoteStore.shared.allQuotes
 

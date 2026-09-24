@@ -1,2 +1,7 @@
 # Local quote content may contain private text.
 Shared/Quotes.json
+
+# Private Notes links, exports, and local import data.
+Healing/NotesSources.private.json
+PrivateNotes/
+.build/
