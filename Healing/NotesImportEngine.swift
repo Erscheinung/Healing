@@ -10,13 +10,44 @@ enum NotesImportEngine {
     }
 
     struct Preview {
+        enum ItemState: String, Hashable {
+            case new
+            case alreadyKnown
+            case repeated
+        }
+
+        struct Item: Identifiable, Hashable {
+            /// The position in the pasted note. Keeping this stable lets the UI select
+            /// individual rows even when two entries happen to have the same text.
+            let index: Int
+            let text: String
+            let fingerprint: String
+            let state: ItemState
+
+            var id: Int { index }
+            var isNew: Bool { state == .new }
+        }
+
         let entries: [String]
         let newEntries: [String]
         let duplicateCount: Int
         let lastKnownPosition: Int?
+        let items: [Item]
+
+        /// The note's bottom entries are shown first because they are normally the
+        /// newest additions to an Apple Note.
+        var displayItems: [Item] { Array(items.reversed()) }
+        var newItems: [Item] { items.filter(\.isNew) }
     }
 
     nonisolated static func fingerprint(_ text: String) -> String {
+        digest(normalizedText(text))
+    }
+
+    /// The importer used this narrower form before the comparison rules were
+    /// expanded. Remembered imports may still contain these hashes, so previews
+    /// check both forms while the current form is stored for new imports.
+    private static func legacyFingerprint(_ text: String) -> String {
         let normalized = text.precomposedStringWithCanonicalMapping
             .lowercased()
             .replacingOccurrences(of: "[’‘]", with: "'", options: .regularExpression)
@@ -26,7 +57,40 @@ enum NotesImportEngine {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+        return digest(normalized)
+    }
+
+    private static func normalizedText(_ text: String) -> String {
+        var normalized = text.precomposedStringWithCanonicalMapping
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .replacingOccurrences(of: "\u{202F}", with: " ")
+            .replacingOccurrences(of: "\u{200B}", with: "")
+            .replacingOccurrences(of: "\u{200C}", with: "")
+            .replacingOccurrences(of: "\u{200D}", with: "")
+            .replacingOccurrences(of: "\u{FEFF}", with: "")
+            .lowercased()
+            .replacingOccurrences(of: "[’‘ʼ＇]", with: "'", options: .regularExpression)
+            .replacingOccurrences(of: "[“”„‟«»]", with: "\"", options: .regularExpression)
+            .replacingOccurrences(of: "[–—―−‒]", with: "-", options: .regularExpression)
+            .replacingOccurrences(of: "…", with: "...", options: .literal)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Remove a matching pair of quote marks without damaging contractions
+        // or words that merely begin with an apostrophe.
+        while let first = normalized.first,
+              let last = normalized.last,
+              normalized.count > 1,
+              (first == "\"" && last == "\"") || (first == "'" && last == "'") {
+            normalized.removeFirst()
+            normalized.removeLast()
+            normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return normalized
+    }
+
+    private static func digest(_ normalized: String) -> String {
+        SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     static func entries(in text: String, grouping: Grouping) -> [String] {
@@ -62,15 +126,28 @@ enum NotesImportEngine {
     static func preview(text: String, grouping: Grouping, existing: [String], remembered: Set<String>) -> Preview {
         let entries = entries(in: text, grouping: grouping)
         let known = Set(existing.map(fingerprint)).union(remembered)
+        let legacyKnown = Set(existing.map(legacyFingerprint))
         var seen = known
         var additions: [String] = []
+        var items: [Preview.Item] = []
         var lastKnown: Int?
         for (index, entry) in entries.enumerated() {
             let key = fingerprint(entry)
-            if known.contains(key) { lastKnown = index + 1 }
-            if seen.insert(key).inserted { additions.append(entry) }
+            let legacyKey = legacyFingerprint(entry)
+            let state: Preview.ItemState
+            if known.contains(key) || legacyKnown.contains(legacyKey) || remembered.contains(legacyKey) {
+                lastKnown = index + 1
+                state = .alreadyKnown
+            } else if seen.insert(key).inserted {
+                additions.append(entry)
+                state = .new
+            } else {
+                state = .repeated
+            }
+            items.append(Preview.Item(index: index, text: entry, fingerprint: key, state: state))
         }
         return Preview(entries: entries, newEntries: additions,
-                       duplicateCount: entries.count - additions.count, lastKnownPosition: lastKnown)
+                       duplicateCount: entries.count - additions.count, lastKnownPosition: lastKnown,
+                       items: items)
     }
 }

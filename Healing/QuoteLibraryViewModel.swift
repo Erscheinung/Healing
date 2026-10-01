@@ -118,20 +118,26 @@ final class QuoteLibraryViewModel: ObservableObject {
     }
 
     @discardableResult
-    func importNotes(text: String, source: String, grouping: NotesImportEngine.Grouping) -> Int {
+    func importNotes(text: String, source: String, grouping: NotesImportEngine.Grouping,
+                     selectedFingerprints: Set<String>? = nil) -> Int {
         // Recompute at confirmation time so changes to the library cannot create duplicates.
         let preview = notesPreview(text: text, source: source, grouping: grouping)
+        let selectedItems = preview.displayItems.filter { item in
+            item.isNew && (selectedFingerprints == nil || selectedFingerprints?.contains(item.fingerprint) == true)
+        }
         let firstID = nextID()
         let template = quotes.first(where: { $0.practice == source }) ?? QuoteStore.shared.randomQuote()
-        let additions = preview.newEntries.enumerated().map { offset, text in
-            Quote(id: firstID + offset, text: text, author: nil, practice: source,
+        let additions = selectedItems.enumerated().map { offset, item in
+            Quote(id: firstID + offset, text: item.text, author: nil, practice: source,
                   theme: template.theme, backgroundColor: template.backgroundColor,
                   foregroundColor: template.foregroundColor, accentColor: template.accentColor)
         }
-        if !additions.isEmpty { quotes += additions }
+        // Imported note entries are ordered newest first so the library page opens on
+        // the latest additions.
+        if !additions.isEmpty { quotes = additions + quotes }
         let key = notesHistoryKey(source)
         let history = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
-            .union(preview.entries.map(NotesImportEngine.fingerprint))
+            .union(additions.map { NotesImportEngine.fingerprint($0.text) })
         UserDefaults.standard.set(Array(history), forKey: key)
         return additions.count
     }
